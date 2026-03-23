@@ -1,0 +1,8 @@
+.env
+.venv
+memory.*
+__pycache__/
+.pytest_cache
+pytest.ini
+examples/
+report/

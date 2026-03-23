@@ -18,7 +18,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from orchestrator.prompt_templates import planner_system_prompt
-from tools.llm_client import call_llm
+from tools.llm_client import LLMResponse, call_llm
 
 logger = logging.getLogger(__name__)
 
@@ -242,7 +242,18 @@ def plan(
 
         try:
             logger.info("Planner attempt %d/%d", attempt, max_retries)
-            raw_response = call_llm(planner_system_prompt, prompt, json_mode=False)
+            llm_resp: LLMResponse = call_llm(
+                planner_system_prompt,
+                prompt,
+                json_mode=False,
+            )
+
+            if not llm_resp.success:
+                last_error = llm_resp.error or "LLM returned no content."
+                logger.warning("Attempt %d LLM error: %s", attempt, last_error)
+                continue
+
+            raw_response = llm_resp.content or ""
             raw_list = _parse_raw_response(raw_response)
             tasks, validation_errors = _build_tasks(raw_list)
 

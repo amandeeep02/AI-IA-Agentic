@@ -182,13 +182,23 @@ class Controller:
 
             # ── 2. Code generation ───────────────────────────
             logger.info("Generating code…")
-            code_json = generate_code(requirement)
-            files = code_json.get("files", [])
-            if not files:
-                raise RuntimeError("Code generator returned no files.")
+            code_res = generate_code(requirement)
+            if not code_res.success:
+                raise RuntimeError(code_res.error or "Code generator failed.")
 
-            written = _write_files(run_dir, files)
-            self.log.info(run_id, "write_files", {"dir": str(run_dir), "files": written})
+            files_payload = [{"path": f.path, "content": f.content} for f in code_res.files]
+            written = _write_files(run_dir, files_payload)
+            self.log.info(
+                run_id,
+                "write_files",
+                {
+                    "dir": str(run_dir),
+                    "files": written,
+                    "validation_warnings": code_res.validation_warnings,
+                },
+            )
+            if code_res.validation_warnings:
+                logger.warning("Codegen warnings: %s", code_res.validation_warnings)
             logger.info("Wrote %d file(s) to %s", len(written), run_dir)
 
             # ── 3. Build a quick context snapshot for the analyzer ──
@@ -204,8 +214,8 @@ class Controller:
                 summary.iterations_used = iter_num
 
                 test_result = self.sandbox.run_tests(str(run_dir))
-                self.log.info(run_id, "test_run", {**test_result, "iteration": iter_num})
-                passed = test_result.get("rc", 1) == 0
+                self.log.info(run_id, "test_run", {**test_result.to_dict(), "iteration": iter_num})
+                passed = test_result.rc == 0
 
                 record = IterationRecord(
                     iteration=iter_num,
