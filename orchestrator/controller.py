@@ -213,13 +213,18 @@ class Controller:
                 logger.info("─── Iteration %d/%d ───", iter_num, self.max_iters)
                 summary.iterations_used = iter_num
 
-                test_result = self.sandbox.run_tests(str(run_dir))
-                self.log.info(run_id, "test_run", {**test_result.to_dict(), "iteration": iter_num})
-                passed = test_result.rc == 0
+                sandbox_result = self.sandbox.run_tests(str(run_dir))
+                self.log.info(
+                    run_id,
+                    "test_run",
+                    {**sandbox_result.to_dict(), "iteration": iter_num},
+                )
+                passed = sandbox_result.rc == 0
 
                 record = IterationRecord(
                     iteration=iter_num,
-                    test_result=test_result,
+                    # app.py expects a dict with `.get(...)` and key access.
+                    test_result=sandbox_result.to_dict(),
                     passed=passed,
                 )
 
@@ -237,8 +242,8 @@ class Controller:
                 # ── Analyze failure ──────────────────────────
                 logger.info("Tests failed — analyzing…")
                 analysis = analyze_failure(
-                    test_result.get("stdout", ""),
-                    test_result.get("stderr", ""),
+                    stdout=sandbox_result.stdout,
+                    stderr=sandbox_result.stderr,
                     context_files=source_snapshot,
                 )
 
