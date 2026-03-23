@@ -1,0 +1,4 @@
+streamlit==1.55.0
+python-dotenv==1.2.2
+openai==2.29.0
+pytest==9.0.2
